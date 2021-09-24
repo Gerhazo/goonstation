@@ -102,6 +102,8 @@
 	var/whitelistEnabled = 0
 	var/whitelist_path = "strings/whitelist.txt"
 
+	var/tempbans_path = "strings/tempbans.txt"
+
 /datum/configuration/New()
 	..()
 	var/list/L = childrentypesof(/datum/game_mode)

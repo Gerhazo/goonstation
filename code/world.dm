@@ -231,6 +231,9 @@ var/f_color_selector_handler/F_Color_Selector
 		config = new /datum/configuration()
 		config.load("config/config.txt")
 
+		Z_LOG_DEBUG("Preload", "Loading the clunky scuffed tempbans...")
+		load_temp_bans()
+
 		if (config.server_specific_configs && world.port > 0)
 			var/specific_config = "config/config-[world.port].txt"
 			if (fexists(specific_config))

@@ -182,7 +182,10 @@ var/list/admin_verbs = list(
 		/client/proc/cmd_get_type,
 
 		/client/proc/vpn_whitelist_add,
-		/client/proc/vpn_whitelist_remove
+		/client/proc/vpn_whitelist_remove,
+		/client/proc/tempban_a_jerk,
+		/client/proc/edit_tempbans,
+		/client/proc/print_tempbans
 		),
 
 	4 = list(
@@ -2109,6 +2112,86 @@ var/list/fun_images = list()
 	global.vpn_ip_checks?.Cut() // to allow them to reconnect this round
 	message_admins("Ckey [vpnckey] added to the VPN whitelist by [src.key].")
 	logTheThing("admin", src, null, "Ckey [vpnckey] added to the VPN whitelist.")
+	return 1
+
+/client/proc/tempban_a_jerk()
+	set name = "Tempban a jerk"
+	SET_ADMIN_CAT(ADMIN_CAT_PLAYERS)
+	admin_only
+
+	var/method_of_tempban = input(usr,"Ban logged in player or manually input data?","Temp Ban") in list("logged in", "manual", "special string", "cancel")
+	switch(method_of_tempban)
+		if("logged in")
+			var/client/client_to_be_banned = input("Choose the target.", "Selection") as null|anything in clients
+			if(!client_to_be_banned)
+				return
+			var/ckey_input = client_to_be_banned.ckey
+			var/ip_input = client_to_be_banned.address
+			var/cid_input = client_to_be_banned.computer_id
+			boutput(usr, "<span class='alert'><b>You are currently banning the following player:</b></span>")
+			boutput(usr, "<b>ckey: [ckey_input], ip: [ip_input], cid: [cid_input]</b>")
+			boutput(usr, "<span class='alert'><b>Make sure this is who you want to ban before continuing!</b></span>")
+			if (alert(src, "Are you sure you want to ban the player?", "Confirmation", "Yes", "No") == "Yes")
+				if (alert(src, "Are you VERY SURE you want to ban [ckey_input]?", "Confirmation", "Yes", "No") == "Yes")
+					add_ban_to_tempbans(ckey_input, ip_input, cid_input, usr.client.ckey)
+					del(client_to_be_banned)
+					boutput(usr, "<span class='alert'><b>Ban issued!</b></span>")
+
+		if("manual")
+			var/ckey_input = input(usr,"ckey to ban","Ban") as null|text
+			if(!ckey_input)
+				ckey_input = ""
+			var/ip_input = input(usr,"ip to ban","Ban") as null|text
+			if(!ip_input)
+				ip_input = ""
+			var/cid_input = input(usr,"cid to ban","Ban") as null|text
+			if(!cid_input)
+				cid_input = ""
+
+			if(!ckey_input && !ip_input && !cid_input)
+				boutput(usr, "<span class='alert'><b>All fields empty, canceling.</b></span>")
+				return
+
+			add_ban_to_tempbans(ckey_input, ip_input, cid_input, usr.client.ckey)
+			boutput(usr, "Ban added. Make sure to manually kick the player if they're currently online on this server.")
+
+		if("special string")
+			var/special_string = input("Paste in the special string of ckey, ip, cid, split by ; as the deliminator.\nExample: someckey;192.168.1.1;4524905246", "Selection") as null|text
+			if(!special_string)
+				return
+			var/list/split_text = splittext(special_string, ";")
+			if(length(split_text) != 3)
+				boutput(usr, "Incorrect input. Are you following the format?")
+				return
+			add_ban_to_tempbans(split_text[1], split_text[2], split_text[3], usr.client.ckey)
+			boutput(usr, "Ban added. Make sure to manually kick the player if they're currently online on this server.")
+		else
+			return  // canceled
+	return 1
+
+/client/proc/print_tempbans()
+	set name = "Tempban print bans"
+	SET_ADMIN_CAT(ADMIN_CAT_PLAYERS)
+	admin_only
+
+	if (alert(src, "This will read the tempbans file and print all tempbans in the special string format to you. Do it?", "Confirmation", "Yes", "No") == "Yes")
+		var/text = file2text(config.tempbans_path)
+		boutput(usr, replacetext(text, "\n", "<br>"))
+	return 1
+
+/client/proc/edit_tempbans()
+	set name = "Tempban direct edit"
+	SET_ADMIN_CAT(ADMIN_CAT_PLAYERS)
+	admin_only
+
+	if (alert(src, "This will read the tempbans file and allow you to directly edit it. Please be careful and try to maintain the same syntax. Start?", "Confirmation", "Yes", "No") == "Yes")
+		var/text = file2text(config.tempbans_path)
+		var/edited_text = input(src, "Format: ckey;ip;cid separated by newlines.\nNote: empty lines or lines starting with a # will be ignored, you can use that for comments like ban reasons if you really need to.\nNote: empty input is equivalent to canceling, if you need to delete the whole list you can for instance leave a single comment (#).", "Tempban edit", "[text]") as null|message
+		if(!edited_text)
+			boutput(usr, "Canceled tempban editing.")
+			return
+		overwrite_temp_bans(edited_text, usr.client.ckey)
+
 	return 1
 
 /client/proc/vpn_whitelist_remove(vpnckey as text)
