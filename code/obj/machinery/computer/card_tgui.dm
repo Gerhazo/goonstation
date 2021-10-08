@@ -85,8 +85,6 @@
 	var/original_pin
 	var/list/types_of_categorised_access_fields_to_add // used to generate cat_access_fields
 	var/list/cat_access_fields
-	//var/number_of_added_access = 0      handle with length on the lists instead, todo: removal later
-	//var/number_of_revoked_access = 0
 
 	var/list/access_field_lookup = list()
 	var/list/list_of_added_access_permissions = list()
@@ -109,7 +107,17 @@
 			for(var/datum/access_field_data/access_field in categorised_fields.access_fields)
 				access_field_lookup["[access_field.access_permission]"] = access_field
 
+	proc/setup_data_from_id(var/obj/item/card/id/input_id)
+		src.registered_name = input_id.registered
+		src.original_registered_name = input_id.registered
+		src.assignment = input_id.assignment
+		src.original_assignment = input_id.assignment
+		src.pin = input_id.pin
+		src.original_pin = input_id.pin
+		setup_access_field_datas_from_a_list_of_accesses(input_id.access)
+
 	proc/setup_access_field_datas_from_a_list_of_accesses(var/list/list_of_accesses)
+		PRIVATE_PROC(TRUE)
 		for(var/access in list_of_accesses) // set every access in list as originally and currently enabled
 			var/datum/access_field_data/found_access_field = access_field_lookup["[access]"]
 			found_access_field.current_enabled_status = 1
@@ -127,6 +135,14 @@
 					list_of_revoked_access_permissions.Add(matching_access)
 				if(ACCESS_REVOCATION_REVERTED)
 					list_of_revoked_access_permissions.Remove(matching_access)
+
+	proc/set_access(var/access, var/enabled)
+		if(access_field_lookup["[access]"])
+			var/datum/access_field_data/access_data = access_field_lookup["access"]
+			if(access_data.current_enabled_status == enabled)
+				return // no change needed, already matches enabled's value
+			else
+				toggle_access(access) // calls proc which toggles the access to match enabled's value and handles keeping track of the change
 
 /datum/identification_computer_process_data/standard
 	types_of_categorised_access_fields_to_add = list(/datum/categorised_access_fields/civilian,
@@ -166,6 +182,8 @@
 	light_b = 0.1
 
 	// tgui data
+	var/list/job_dropdown_selection_options // if this isn't defined, it'll be generated in New()
+
 	var/id_computer_process_data_type_to_use = /datum/identification_computer_process_data/standard
 	var/datum/identification_computer_process_data/id_computer_process_data
 
@@ -175,6 +193,14 @@
 /obj/machinery/computer/tguicard/New()
 	..()
 	src.allowed_access_list = civilian_access_list + engineering_access_list + supply_access_list + research_access_list + command_access_list + security_access_list - access_maxsec
+	if (!job_dropdown_selection_options)
+		job_dropdown_selection_options = list()
+		var/list/civilianjobs = list("Staff Assistant", "Bartender", "Chef", "Botanist", "Rancher", "Chaplain", "Janitor", "Clown")
+		var/list/engineeringjobs = list("Engineer", "Mechanic", "Miner", "Quartermaster")
+		var/list/researchjobs = list("Scientist", "Medical Doctor", "Geneticist", "Roboticist", "Pathologist")
+		var/list/securityjobs = list("Security Officer", "Security Assistant", "Detective")
+		var/list/commandjobs = list("Head of Personnel", "Chief Engineer", "Research Director", "Medical Director", "Captain")
+		job_dropdown_selection_options.Add(civilianjobs, engineeringjobs, researchjobs, securityjobs, commandjobs)
 
 /obj/machinery/computer/tguicard/ui_interact(mob/user, datum/tgui/ui)
 	ui = tgui_process.try_update_ui(user, src, ui)
@@ -183,17 +209,69 @@
 		ui.open()
 
 /obj/machinery/computer/tguicard/ui_data(mob/user)
+	var/list/sent_id_computer_process_data_associative_list
+
+	if(src.id_computer_process_data)
+		var/list/list/list/associative_list_of_cat_access_fields = list()
+		for(var/datum/categorised_access_fields/cat_field in src.id_computer_process_data.cat_access_fields)
+			var/list/list/associated_access_fields = list()
+			for(var/datum/access_field_data/access_field in cat_field.access_fields)
+				var/list/associated_list_entry = list(
+					"access_permission" = access_field.access_permission,
+					"current_enabled_status" = access_field.current_enabled_status,
+					"original_id_enabled_status" = access_field.original_id_enabled_status
+				)
+				associated_access_fields.Add(list(associated_list_entry))
+			var/list/cat_field_associated_list = list(
+				"category_title" = cat_field.category_title,
+				"category_color" = cat_field.category_color,
+				"access_fields" = associated_access_fields
+			)
+			associative_list_of_cat_access_fields.Add(list(cat_field_associated_list))
+
+		sent_id_computer_process_data_associative_list = list(
+		"registered_name" = src.id_computer_process_data.registered_name,
+		"original_registered_name" = src.id_computer_process_data.original_registered_name,
+		"assignment" = src.id_computer_process_data.assignment,
+		"original_assignment" = src.id_computer_process_data.original_assignment,
+		"pin" = src.id_computer_process_data.pin,
+		"original_pin" = src.id_computer_process_data.original_pin,
+		"number_of_added_access" = length(src.id_computer_process_data.list_of_added_access_permissions),
+		"number_of_removed_access" = length(src.id_computer_process_data.list_of_revoked_access_permissions),
+		"cat_access_fields" = associative_list_of_cat_access_fields
+		)
+	var/list/sent_authenticaton_card_data
+	if(src.authentication_card)
+		sent_authenticaton_card_data = list(
+		"name" = src.authentication_card.name,
+		"registered" = src.authentication_card.registered,
+		"assignment" = src.authentication_card.assignment
+		)
+
+	var/list/sent_modified_card_data
+	if(src.modified_card)
+		sent_modified_card_data = list(
+		"name" = src.modified_card.name,
+		"registered" = src.modified_card.registered,
+		"assignment" = src.modified_card.assignment
+		)
+
 	. = list(
-	"authentication_card" = src.authentication_card,
-	"modified_card" = src.modified_card,
+	"authentication_card_data" = sent_authenticaton_card_data,
+	"modified_card_data" = sent_modified_card_data,
 	"is_authenticated" = src.authenticated,
-	"id_computer_process_data" = src.id_computer_process_data,
+	"id_computer_process_data" = sent_id_computer_process_data_associative_list,
 	"selected_main_tab_index" = src.tgui_main_tab_index
 	)
 
-/obj/machinery/computer/tguicard/proc/generate_id_computer_process_data(var/list/list_of_accesses)
+/obj/machinery/computer/tguicard/ui_static_data(mob/user)
+		. = list(
+			"all_job_selections" = src.job_dropdown_selection_options
+		)
+
+/obj/machinery/computer/tguicard/proc/generate_id_computer_process_data_from_current_modified_card()
 	src.id_computer_process_data = new id_computer_process_data_type_to_use
-	src.id_computer_process_data.setup_access_field_datas_from_a_list_of_accesses(list_of_accesses)
+	src.id_computer_process_data.setup_data_from_id(src.modified_card)
 
 /obj/machinery/computer/tguicard/ui_act(action, params)
 	. = ..()
@@ -252,7 +330,7 @@
 			src.authentication_card = I
 			update_authentication_status()
 			if(src.modified_card)
-				generate_id_computer_process_data(src.modified_card.access)
+				generate_id_computer_process_data_from_current_modified_card()
 
 /// Handles pressing the modification target card slot in the tgui interface.
 /obj/machinery/computer/tguicard/proc/on_target_card_pressed(var/mob/user)
@@ -279,7 +357,7 @@
 				I.set_loc(src)
 			src.modified_card = I
 			if(src.authentication_card)
-				generate_id_computer_process_data(src.modified_card.access)
+				generate_id_computer_process_data_from_current_modified_card()
 
 /obj/machinery/computer/tguicard/Topic(href, href_list)
 	if(..())

@@ -1,13 +1,13 @@
 import { useBackend, useLocalState } from '../backend';
-import { Tabs, Box, BlockQuote, Button, LabeledList, Divider, Icon, NoticeBox, NumberInput, Section, Stack } from '../components';
+import { Tabs, Box, Dropdown, BlockQuote, Button, LabeledList, Divider, Icon, NoticeBox, NumberInput, Section, Stack, Flex } from '../components';
 import { Window } from '../layouts';
 
 export const IdentificationComputer = (props, context) => {
   const { act, data } = useBackend(context);
   // Extract `health` and `color` variables from the `data` object.
   const {
-    authentication_card,
-    modified_card,
+    authentication_card_data,
+    modified_card_data,
     is_authenticated,
     id_computer_process_data,
     selected_main_tab_index,
@@ -40,40 +40,152 @@ export const IdentificationComputer = (props, context) => {
           )}
         </Tabs>
         <Box>
-          <Section
-            title="Authentication"
-          >
-            <Stack vertical>
-              {!authentication_card && !is_authenticated && <AuthenticationPanelNotAuthenticated />}
-              {authentication_card && !is_authenticated && <AuthenticationPanelAuthenticationFailed />}
-              {authentication_card && is_authenticated && <AuthenticationPanelAuthenticationSuccess />}
-            </Stack>
-          </Section>
-          <Section
-            title="Auxillary Inputs"
-          >
-            <Stack vertical>
-              <Stack.Item>
-                <strong>Target modification ID: </strong>
-                <Button
-                  icon={modified_card ? "id-card" : "eject"}
-                  onClick={() => act('insert_target_id')}
-                >
-                  {modified_card ? ("Eject ID: " + modified_card) : "Insert ID"}
-                </Button>
-              </Stack.Item>
-            </Stack>
-          </Section>
+          {(selected_main_tab_index === 1) && <TabOneContent />}
+          {(selected_main_tab_index === 2) && <TabTwoContent />}
         </Box>
       </Window.Content>
     </Window>
   );
 };
 
+const TabOneContent = (_props, context) => {
+  const { act, data } = useBackend(context);
+  const {
+    authentication_card_data,
+    is_authenticated,
+    modified_card_data,
+  } = data;
+
+  return (
+    <>
+      <Section
+        title="Authentication"
+      >
+        <Stack vertical>
+          {!authentication_card_data && !is_authenticated && <AuthenticationPanelNotAuthenticated />}
+          {authentication_card_data && !is_authenticated && <AuthenticationPanelAuthenticationFailed />}
+          {authentication_card_data && is_authenticated && <AuthenticationPanelAuthenticationSuccess />}
+        </Stack>
+      </Section>
+      <Section
+        title="Auxillary Inputs"
+      >
+        <Stack vertical>
+          <Stack.Item>
+            <strong>Target modification ID: </strong>
+            <Button
+              icon={modified_card_data ? "id-card" : "eject"}
+              onClick={() => act('insert_target_id')}
+            >
+              {modified_card_data ? ("Eject ID: " + modified_card_data.name) : "Insert ID"}
+            </Button>
+          </Stack.Item>
+        </Stack>
+      </Section>
+    </>
+  );
+};
+
+const TabTwoContent = (_props, context) => {
+  const { act, data } = useBackend(context);
+  const {
+    authentication_card_data,
+    is_authenticated,
+    modified_card_data,
+    id_computer_process_data,
+    all_job_selections,
+  } = data;
+
+  return (
+    <>
+      <Section>
+        <strong>Target modification ID: </strong>
+        <Button
+          icon={modified_card_data ? "id-card" : "eject"}
+          onClick={() => act('insert_target_id')}
+        >
+          {modified_card_data ? ("Eject ID: " + modified_card_data.name) : "Insert ID"}
+        </Button>
+      </Section>
+      <Section
+        title="Identification"
+      >
+        <Stack vertical>
+          <Stack.Item>
+            Registered:
+            <Button
+              onClick={() => act('insert_target_id')}
+            >
+              {modified_card_data?.registered}
+            </Button>
+          </Stack.Item>
+          <Stack.Item>
+            Assignment:
+            <Button
+              onClick={() => act('insert_target_id')}
+            >
+              {modified_card_data?.assignment}
+            </Button>
+          </Stack.Item>
+          <Stack.Item>
+            PIN:
+            <Button
+              onClick={() => act('insert_target_id')}
+            >
+              ****
+            </Button>
+          </Stack.Item>
+        </Stack>
+      </Section>
+      <Section
+        title="Jobs"
+      >
+        <Stack>
+          <Stack.Item>
+            <Dropdown
+              options={all_job_selections}
+              width={12}
+            />
+          </Stack.Item>
+          <Stack.Item>
+            <Button
+              icon=""
+              onClick={() => act('insert_target_id')}
+            >
+              Set
+            </Button>
+          </Stack.Item>
+          <Stack.Item>
+            <Button
+              icon="plus"
+              onClick={() => act('insert_target_id')}
+            >
+              Add access
+            </Button>
+          </Stack.Item>
+          <Stack.Item>
+            <Button
+              icon="minus"
+              onClick={() => act('insert_target_id')}
+            >
+              Subtract access
+            </Button>
+          </Stack.Item>
+        </Stack>
+      </Section>
+      <Section
+        title="Access"
+      >
+        access
+      </Section>
+    </>
+  );
+};
+
 const AuthenticationPanelNotAuthenticated = (_props, context) => {
   const { act, data } = useBackend(context);
   const {
-    authentication_card,
+    authentication_card_data,
   } = data;
 
   return (
@@ -102,7 +214,7 @@ const AuthenticationPanelNotAuthenticated = (_props, context) => {
 const AuthenticationPanelAuthenticationFailed = (_props, context) => {
   const { act, data } = useBackend(context);
   const {
-    authentication_card,
+    authentication_card_data,
   } = data;
 
   return (
@@ -118,7 +230,7 @@ const AuthenticationPanelAuthenticationFailed = (_props, context) => {
           icon="id-card"
           onClick={() => act('insert_authentication_id')}
         >
-          {("Eject ID: " + authentication_card)}
+          {("Eject ID: " + authentication_card_data.name)}
         </Button>
       </Stack.Item>
       <Stack.Item>
@@ -132,7 +244,7 @@ const AuthenticationPanelAuthenticationFailed = (_props, context) => {
 const AuthenticationPanelAuthenticationSuccess = (_props, context) => {
   const { act, data } = useBackend(context);
   const {
-    authentication_card,
+    authentication_card_data,
   } = data;
 
   return (
@@ -148,7 +260,7 @@ const AuthenticationPanelAuthenticationSuccess = (_props, context) => {
           icon="id-card"
           onClick={() => act('insert_authentication_id')}
         >
-          {("Eject ID: " + authentication_card)}
+          {("Eject ID: " + authentication_card_data.name)}
         </Button>
       </Stack.Item>
       <Stack.Item>
