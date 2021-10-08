@@ -10,25 +10,40 @@ export const IdentificationComputer = (props, context) => {
     modified_card,
     is_authenticated,
     id_computer_process_data,
+    selected_main_tab_index,
   } = data;
-  const [tabIndex, setTabIndex] = useLocalState(context, 'tabIndex', 1);
   return (
     <Window>
       <Window.Content scrollable>
         <Tabs>
           <Tabs.Tab
-            selected={tabIndex === 1}
-            onClick={() => setTabIndex(1)}>
+            selected={selected_main_tab_index === 1}
+            onClick={() => act('set_main_tab_index', { index: 1 })}>
             Tab one
           </Tabs.Tab>
-          <Tabs.Tab
-            selected={tabIndex === 2}
-            onClick={() => setTabIndex(2)}>
-            Tab two
-          </Tabs.Tab>
+          {!!is_authenticated && (
+            <>
+              <Tabs.Tab
+                selected={selected_main_tab_index === 2}
+                onClick={() => act('set_main_tab_index', { index: 2 })}>
+                Tab two
+              </Tabs.Tab>
+              <Tabs.Tab
+                selected={selected_main_tab_index === 3}
+                onClick={() => act('set_main_tab_index', { index: 3 })}>
+                Tab three
+              </Tabs.Tab>
+            </>
+          )}
         </Tabs>
         <Box>
-          Tab selected: {tabIndex}
+          Tab selected: {selected_main_tab_index}
+          <Button
+            icon="id-card"
+            onClick={() => act('insert_card')}
+          >
+            Insert ID
+          </Button>
         </Box>
       </Window.Content>
     </Window>

@@ -148,6 +148,9 @@
 	var/id_computer_process_data_type_to_use = /datum/identification_computer_process_data/standard
 	var/datum/identification_computer_process_data/id_computer_process_data
 
+	var/tgui_main_tab_index = 1
+	var/authentication_locked_tabs = list(2, 3)
+
 /obj/machinery/computer/tguicard/New()
 	..()
 	src.allowed_access_list = civilian_access_list + engineering_access_list + supply_access_list + research_access_list + command_access_list + security_access_list - access_maxsec
@@ -163,7 +166,8 @@
 	"authentication_card" = src.authentication_card,
 	"modified_card" = src.modified_card,
 	"is_authenticated" = src.authenticated,
-	"id_computer_process_data" = src.id_computer_process_data
+	"id_computer_process_data" = src.id_computer_process_data,
+	"selected_main_tab_index" = src.tgui_main_tab_index
 	)
 
 /obj/machinery/computer/tguicard/proc/generate_id_computer_process_data()
@@ -184,6 +188,13 @@
 			var/obj/potential_id = usr.equipped()
 			if (istype(potential_id, /obj/item/card/id))
 				. = src.Attackby(potential_id, usr)
+		if("set_main_tab_index")
+			var/new_index = params["index"]
+			if(new_index in authentication_locked_tabs)
+				if(!authentication_card || !authenticated)
+					return TRUE
+			tgui_main_tab_index = new_index
+			. = TRUE
 
 	/*
 		if("copypasta")
