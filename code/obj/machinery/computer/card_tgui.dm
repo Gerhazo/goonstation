@@ -40,7 +40,7 @@
 
 	proc/generate_access_fields_from_list_of_accesses(var/list/input_list)
 		PRIVATE_PROC(TRUE)
-		var/list/returned_list_of_access_fields
+		var/list/returned_list_of_access_fields = list()
 		for(var/access_field in input_list)
 			var/datum/access_field_data/new_field = new/datum/access_field_data(access_field)
 			returned_list_of_access_fields.Add(new_field)
@@ -88,7 +88,7 @@
 	//var/number_of_added_access = 0      handle with length on the lists instead, todo: removal later
 	//var/number_of_revoked_access = 0
 
-	var/list/access_field_lookup
+	var/list/access_field_lookup = list()
 	var/list/list_of_added_access_permissions = list()
 	var/list/list_of_revoked_access_permissions = list()
 
@@ -107,17 +107,17 @@
 		PRIVATE_PROC(TRUE)
 		for(var/datum/categorised_access_fields/categorised_fields in cat_access_fields)
 			for(var/datum/access_field_data/access_field in categorised_fields.access_fields)
-				access_field_lookup[access_field.access_permission] = access_field
+				access_field_lookup["[access_field.access_permission]"] = access_field
 
 	proc/setup_access_field_datas_from_a_list_of_accesses(var/list/list_of_accesses)
 		for(var/access in list_of_accesses) // set every access in list as originally and currently enabled
-			var/datum/access_field_data/found_access_field = access_field_lookup[access]
+			var/datum/access_field_data/found_access_field = access_field_lookup["[access]"]
 			found_access_field.current_enabled_status = 1
 			found_access_field.original_id_enabled_status = 1
 
 	proc/toggle_access(var/access)
-		if(access_field_lookup[access])
-			var/datum/access_field_data/matching_access = access_field_lookup[access]
+		if(access_field_lookup["[access]"])
+			var/datum/access_field_data/matching_access = access_field_lookup["[access]"]
 			switch(matching_access.toggle_access()) // toggles the state of the access and allows us to handle the result
 				if(ACCESS_ADDITION)
 					list_of_added_access_permissions.Add(matching_access)
@@ -232,7 +232,8 @@
 
 /obj/machinery/computer/tguicard/proc/update_authentication_status()
 	if(!src.authentication_card)
-		return FALSE
+		src.authenticated = FALSE
+		tgui_main_tab_index = 1
 	src.authenticated = src.check_access(src.authentication_card)
 
 /// Handles pressing the authentication card slot in the tgui interface.
@@ -481,6 +482,7 @@
 			user.drop_item()
 			I.set_loc(src)
 			src.authentication_card = I
+			ui_interact(user)
 		else if (!src.modified_card)
 			boutput(user, "<span class='notice'>You insert [src.eject ? src.eject : I] into the target card slot.</span>")
 			user.drop_item()
@@ -489,6 +491,7 @@
 			else
 				I.set_loc(src)
 			src.modified_card = I
+			ui_interact(user)
 		return
 	else
 		..()

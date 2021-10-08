@@ -44,23 +44,9 @@ export const IdentificationComputer = (props, context) => {
             title="Authentication"
           >
             <Stack vertical>
-              <Stack.Item>
-                <NoticeBox info>
-                  You must insert your ID to continue!
-                </NoticeBox>
-              </Stack.Item>
-              <Stack.Item>
-                No ID has been detected. The machine&apos;s functionality is locked down.
-              </Stack.Item>
-              <Stack.Item>
-                <strong>Authentication ID: </strong>
-                <Button
-                  icon="eject"
-                  onClick={() => act('insert_authentication_id')}
-                >
-                  {authentication_card ? ("Eject ID: " + authentication_card) : "Insert ID"}
-                </Button>
-              </Stack.Item>
+              {!authentication_card && !is_authenticated && <AuthenticationPanelNotAuthenticated />}
+              {authentication_card && !is_authenticated && <AuthenticationPanelAuthenticationFailed />}
+              {authentication_card && is_authenticated && <AuthenticationPanelAuthenticationSuccess />}
             </Stack>
           </Section>
           <Section
@@ -70,7 +56,7 @@ export const IdentificationComputer = (props, context) => {
               <Stack.Item>
                 <strong>Target modification ID: </strong>
                 <Button
-                  icon="eject"
+                  icon={modified_card ? "id-card" : "eject"}
                   onClick={() => act('insert_target_id')}
                 >
                   {modified_card ? ("Eject ID: " + modified_card) : "Insert ID"}
@@ -84,7 +70,7 @@ export const IdentificationComputer = (props, context) => {
   );
 };
 
-const SlotWindow = (_props, context) => {
+const AuthenticationPanelNotAuthenticated = (_props, context) => {
   const { act, data } = useBackend(context);
   const {
     authentication_card,
@@ -92,7 +78,83 @@ const SlotWindow = (_props, context) => {
 
   return (
     <>
+      <Stack.Item>
+        <NoticeBox info>
+          You must insert your ID to continue!
+        </NoticeBox>
+      </Stack.Item>
+      <Stack.Item>
+        <strong>Authentication ID: </strong>
+        <Button
+          icon="eject"
+          onClick={() => act('insert_authentication_id')}
+        >
+          {"Insert ID"}
+        </Button>
+      </Stack.Item>
+      <Stack.Item>
+        No ID has been detected. The machine&apos;s functionality is locked down.
+      </Stack.Item>
+    </>
+  );
+};
 
+const AuthenticationPanelAuthenticationFailed = (_props, context) => {
+  const { act, data } = useBackend(context);
+  const {
+    authentication_card,
+  } = data;
+
+  return (
+    <>
+      <Stack.Item>
+        <NoticeBox danger>
+          Authentication failed. Access denied.
+        </NoticeBox>
+      </Stack.Item>
+      <Stack.Item>
+        <strong>Authentication ID: </strong>
+        <Button
+          icon="id-card"
+          onClick={() => act('insert_authentication_id')}
+        >
+          {("Eject ID: " + authentication_card)}
+        </Button>
+      </Stack.Item>
+      <Stack.Item>
+        The inserted ID has insufficient clearance to allow for operation of the console.
+        The machine&apos;s functionality remains locked down. Please contact higher clearance personnel.
+      </Stack.Item>
+    </>
+  );
+};
+
+const AuthenticationPanelAuthenticationSuccess = (_props, context) => {
+  const { act, data } = useBackend(context);
+  const {
+    authentication_card,
+  } = data;
+
+  return (
+    <>
+      <Stack.Item>
+        <NoticeBox success>
+          Authentication successful. Access granted.
+        </NoticeBox>
+      </Stack.Item>
+      <Stack.Item>
+        <strong>Authentication ID: </strong>
+        <Button
+          icon="id-card"
+          onClick={() => act('insert_authentication_id')}
+        >
+          {("Eject ID: " + authentication_card)}
+        </Button>
+      </Stack.Item>
+      <Stack.Item>
+        The inserted ID has sufficient clearance to allow for operation of the console.
+        The machine&apos;s functionality has been unlocked.
+      </Stack.Item>
     </>
   );
 };
