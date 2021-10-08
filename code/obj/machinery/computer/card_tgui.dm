@@ -7,8 +7,8 @@
 
 /datum/access_field_data
 	var/access_permission
-	var/current_enabled_status
-	var/original_id_enabled_status
+	var/current_enabled_status = 0
+	var/original_id_enabled_status = 0
 
 	New(var/access_permission)
 		. = ..()
@@ -85,10 +85,12 @@
 	var/original_pin
 	var/list/types_of_categorised_access_fields_to_add // used to generate cat_access_fields
 	var/list/cat_access_fields
-	var/number_of_added_access = 0
-	var/number_of_revoked_access = 0
+	//var/number_of_added_access = 0      handle with length on the lists instead, todo: removal later
+	//var/number_of_revoked_access = 0
 
 	var/list/access_field_lookup
+	var/list/list_of_added_access_permissions = list()
+	var/list/list_of_revoked_access_permissions = list()
 
 	New()
 		. = ..()
@@ -104,8 +106,27 @@
 	proc/setup_lookup_associative_list()
 		PRIVATE_PROC(TRUE)
 		for(var/datum/categorised_access_fields/categorised_fields in cat_access_fields)
-			for(var/datum/access_field_data/access_field in categorised_fields)
+			for(var/datum/access_field_data/access_field in categorised_fields.access_fields)
 				access_field_lookup[access_field.access_permission] = access_field
+
+	proc/setup_access_field_datas_from_a_list_of_accesses(var/list/list_of_accesses)
+		for(var/access in list_of_accesses) // set every access in list as originally and currently enabled
+			var/datum/access_field_data/found_access_field = access_field_lookup[access]
+			found_access_field.current_enabled_status = 1
+			found_access_field.original_id_enabled_status = 1
+
+	proc/toggle_access(var/access)
+		if(access_field_lookup[access])
+			var/datum/access_field_data/matching_access = access_field_lookup[access]
+			switch(matching_access.toggle_access()) // toggles the state of the access and allows us to handle the result
+				if(ACCESS_ADDITION)
+					list_of_added_access_permissions.Add(matching_access)
+				if(ACCESS_ADDITION_REVERTED)
+					list_of_added_access_permissions.Remove(matching_access)
+				if(ACCESS_REVOCATION)
+					list_of_revoked_access_permissions.Add(matching_access)
+				if(ACCESS_REVOCATION_REVERTED)
+					list_of_revoked_access_permissions.Remove(matching_access)
 
 /datum/identification_computer_process_data/standard
 	types_of_categorised_access_fields_to_add = list(/datum/categorised_access_fields/civilian,
@@ -170,8 +191,9 @@
 	"selected_main_tab_index" = src.tgui_main_tab_index
 	)
 
-/obj/machinery/computer/tguicard/proc/generate_id_computer_process_data()
+/obj/machinery/computer/tguicard/proc/generate_id_computer_process_data(var/list/list_of_accesses)
 	src.id_computer_process_data = new id_computer_process_data_type_to_use
+	src.id_computer_process_data.setup_access_field_datas_from_a_list_of_accesses(list_of_accesses)
 
 /obj/machinery/computer/tguicard/ui_act(action, params)
 	. = ..()
@@ -179,15 +201,11 @@
 		return
 	switch(action)
 		if("insert_authentication_id")
-			var/obj/potential_id = usr.equipped()
-			if (istype(potential_id, /obj/item/card/id))
-				. = src.Attackby(potential_id, usr)
+			on_auth_card_pressed(usr)
+			. = TRUE
 		if("insert_target_id")
-			if(!authentication_card || !authenticated) // somehow skipped being authenticated
-				return TRUE // abort and try to update UI
-			var/obj/potential_id = usr.equipped()
-			if (istype(potential_id, /obj/item/card/id))
-				. = src.Attackby(potential_id, usr)
+			on_target_card_pressed(usr)
+			. = TRUE
 		if("set_main_tab_index")
 			var/new_index = params["index"]
 			if(new_index in authentication_locked_tabs)
@@ -212,149 +230,55 @@
 	icon = 'icons/obj/computerpanel.dmi'
 	icon_state = "id2"
 
-/obj/machinery/computer/tguicard/attack_hand(var/mob/user as mob)
-	if(..())
-		return
+/obj/machinery/computer/tguicard/proc/update_authentication_status()
+	if(!src.authentication_card)
+		return FALSE
+	src.authenticated = src.check_access(src.authentication_card)
 
-	src.add_dialog(user)
-	var/dat
-	if (!( ticker ))
-		return
-	if (src.mode) // accessing crew manifest
-		var/crew = ""
-		for(var/datum/data/record/t in data_core.general)
-			crew += "[t.fields["name"]] - [t.fields["rank"]]<br>"
-		dat = "<tt><b>Crew Manifest:</b><br>Please use security record computer to modified_card entries.<br>[crew]<a href='?src=\ref[src];print=1'>Print</a><br><br><a href='?src=\ref[src];mode=0'>Access ID modification console.</a><br></tt>"
-	else
-		var/header = "<b>Identification Card Modifier</b><br><i>Please insert the cards into the slots</i><br>"
+/// Handles pressing the authentication card slot in the tgui interface.
+/obj/machinery/computer/tguicard/proc/on_auth_card_pressed(var/mob/user)
+	if(src.authentication_card) // card is already inside, eject
+		src.authentication_card.set_loc(src.loc)
+		user.put_in_hand_or_drop(src.authentication_card)
+		src.authentication_card = null
+		update_authentication_status()
+		src.id_computer_process_data = null
+	else // no card inside, trying to insert equipped card
+		var/obj/item/I = usr.equipped()
+		if (istype(I, /obj/item/card/id))
+			usr.drop_item()
+			I.set_loc(src)
+			src.authentication_card = I
+			update_authentication_status()
+			if(src.modified_card)
+				generate_id_computer_process_data(src.modified_card.access)
 
-		var/target_name
-		var/target_owner
-		var/target_rank
-
-		if(src.modified_card)
-			target_name = src.modified_card.name
-		else
-			target_name = "--------"
-		if(src.modified_card && src.modified_card.registered)
-			target_owner = src.modified_card.registered
-		else
-			target_owner = "--------"
-		if(src.modified_card && src.modified_card.assignment)
-			target_rank = src.modified_card.assignment
-		else
-			target_rank = "Unassigned"
+/// Handles pressing the modification target card slot in the tgui interface.
+/obj/machinery/computer/tguicard/proc/on_target_card_pressed(var/mob/user)
+	if (src.modified_card)
+		src.modified_card.update_name()
 		if (src.eject)
-			target_name = src.eject.name
-
-		header += "Target: <a href='?src=\ref[src];modified_card=1'>[target_name]</a><br>"
-
-		var/scan_name
-		if(src.authentication_card)
-			scan_name = src.authentication_card.name
+			src.eject.set_loc(src.loc)
+			user.put_in_hand_or_drop(src.eject)
+			src.eject = null
 		else
-			scan_name = "--------"
-		header += "Confirm Identity: <a href='?src=\ref[src];authentication_card=1'>[scan_name]</a><br>"
-		header += "<hr>"
-
-		var/body = list()
-		//When both IDs are inserted
-		if (src.authenticated && src.modified_card)
-			body += "Registered: <a href='?src=\ref[src];reg=1'>[target_owner]</a><br>"
-			body += "Assignment: <a href='?src=\ref[src];assign=Custom Assignment'>[replacetext(target_rank, " ", "&nbsp")]</a><br>"
-			body += "PIN: <a href='?src=\ref[src];pin=1'>****</a>"
-
-			//Jobs organised into sections
-			var/list/civilianjobs = list("Staff Assistant", "Bartender", "Chef", "Botanist", "Rancher", "Chaplain", "Janitor", "Clown")
-			var/list/maintainencejobs = list("Engineer", "Mechanic", "Miner", "Quartermaster")
-			var/list/researchjobs = list("Scientist", "Medical Doctor", "Geneticist", "Roboticist", "Pathologist")
-			var/list/securityjobs = list("Security Officer", "Security Assistant", "Detective")
-			var/list/commandjobs = list("Head of Personnel", "Chief Engineer", "Research Director", "Medical Director", "Captain")
-
-			body += "<br><br><u>Jobs</u>"
-			body += "<br>Civilian:"
-			for(var/job in civilianjobs)
-				body += " <a href='?src=\ref[src];assign=[job];colour=blue'>[replacetext(job, " ", "&nbsp")]</a>" //make sure there isn't a line break in the middle of a job
-
-			body += "<br>Supply and Maintainence:"
-			for(var/job in maintainencejobs)
-				body += " <a href='?src=\ref[src];assign=[job];colour=yellow'>[replacetext(job, " ", "&nbsp")]</a>"
-
-			body += "<br>Research and Medical:"
-			for(var/job in researchjobs)
-				body += " <a href='?src=\ref[src];assign=[job];colour=purple'>[replacetext(job, " ", "&nbsp")]</a>"
-
-			body += "<br>Security:"
-			for(var/job in securityjobs)
-				body += " <a href='?src=\ref[src];assign=[job];colour=red'>[replacetext(job, " ", "&nbsp")]</a>"
-
-			body += "<br>Command:"
-			for(var/job in commandjobs)
-				body += " <a href='?src=\ref[src];assign=[job];colour=green'>[replacetext(job, " ", "&nbsp")]</a>"
-
-			body += "<br>Custom:"
-			for (var/i = 1, i <= custom_names.len, i++)
-				body += " [src.custom_names[i]] <a href='?src=\ref[src];save=[i]'>save</a> <a href='?src=\ref[src];apply=[i]'>apply</a>"
-
-			//Change access to individual areas
-			body += "<br><br><u>Access</u>"
-
-			//Organised into sections
-			var/civilian_access = list("<br>Staff:")
-			var/engineering_access = list("<br>Engineering:")
-			var/supply_access = list("<br>Supply:")
-			var/research_access = list("<br>Science and Medical:")
-			var/security_access = list("<br>Security:")
-			var/command_access = list("<br>Command:")
-
-			for(var/A in access_name_lookup)
-				if(access_name_lookup[A] in src.modified_card.access)
-					//Click these to remove access
-					if (access_name_lookup[A] in civilian_access_list)
-						civilian_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=0'><font color=\"red\">[replacetext(A, " ", "&nbsp")]</font></a>"
-					if (access_name_lookup[A] in engineering_access_list)
-						engineering_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=0'><font color=\"red\">[replacetext(A, " ", "&nbsp")]</font></a>"
-					if (access_name_lookup[A] in supply_access_list)
-						supply_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=0'><font color=\"red\">[replacetext(A, " ", "&nbsp")]</font></a>"
-					if (access_name_lookup[A] in research_access_list)
-						research_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=0'><font color=\"red\">[replacetext(A, " ", "&nbsp")]</font></a>"
-					if (access_name_lookup[A] in security_access_list)
-						security_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=0'><font color=\"red\">[replacetext(A, " ", "&nbsp")]</font></a>"
-					if (access_name_lookup[A] in command_access_list)
-						command_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=0'><font color=\"red\">[replacetext(A, " ", "&nbsp")]</font></a>"
-				else//Click these to add access
-					if (access_name_lookup[A] in civilian_access_list)
-						civilian_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=1'>[replacetext(A, " ", "&nbsp")]</a>"
-					if (access_name_lookup[A] in engineering_access_list)
-						engineering_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=1'>[replacetext(A, " ", "&nbsp")]</a>"
-					if (access_name_lookup[A] in supply_access_list)
-						supply_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=1'>[replacetext(A, " ", "&nbsp")]</a>"
-					if (access_name_lookup[A] in research_access_list)
-						research_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=1'>[replacetext(A, " ", "&nbsp")]</a>"
-					if (access_name_lookup[A] in security_access_list)
-						security_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=1'>[replacetext(A, " ", "&nbsp")]</a>"
-					if (access_name_lookup[A] in command_access_list)
-						command_access += " <a href='?src=\ref[src];access=[access_name_lookup[A]];allowed=1'>[replacetext(A, " ", "&nbsp")]</a>"
-
-			body += "[jointext(civilian_access, "")]<br>[jointext(engineering_access, "")]<br>[jointext(supply_access, "")]<br>[jointext(research_access, "")]<br>[jointext(security_access, "")]<br>[jointext(command_access, "")]"
-
-			body += "<br><br><u>Customise ID</u><br>"
-			body += "<a href='?src=\ref[src];colour=none'>Plain</a> "
-			body += "<a href='?src=\ref[src];colour=blue'>Civilian</a> "
-			body += "<a href='?src=\ref[src];colour=yellow'>Engineering</a> "
-			body += "<a href='?src=\ref[src];colour=purple'>Research</a> "
-			body += "<a href='?src=\ref[src];colour=red'>Security</a> "
-			body += "<a href='?src=\ref[src];colour=green'>Command</a>"
-
-			user.unlock_medal("Identity Theft", 1)
-
-		else
-			body += "<a href='?src=\ref[src];auth=1'>{Log in}</a>"
-		body = jointext(body, "")
-		dat = "<tt>[header][body]<hr><a href='?src=\ref[src];mode=1'>Access Crew Manifest</a><br></tt>"
-	user.Browse(dat, "window=id_com;size=725x500")
-	onclose(user, "id_com")
-	return
+			src.modified_card.set_loc(src.loc)
+			user.put_in_hand_or_drop(src.modified_card)
+		src.modified_card = null
+		src.id_computer_process_data = null
+	else
+		var/obj/item/I = usr.equipped()
+		if (!istype(I,/obj/item/card/id))
+			I = get_card_from(I)
+		if (istype(I, /obj/item/card/id))
+			usr.drop_item()
+			if (src.eject)
+				src.eject.set_loc(src)
+			else
+				I.set_loc(src)
+			src.modified_card = I
+			if(src.authentication_card)
+				generate_id_computer_process_data(src.modified_card.access)
 
 /obj/machinery/computer/tguicard/Topic(href, href_list)
 	if(..())
@@ -565,7 +489,6 @@
 			else
 				I.set_loc(src)
 			src.modified_card = I
-		src.updateUsrDialog()
 		return
 	else
 		..()
