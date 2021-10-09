@@ -7,12 +7,14 @@
 
 /datum/access_field_data
 	var/access_permission
+	var/access_description
 	var/current_enabled_status = 0
 	var/original_id_enabled_status = 0
 
 	New(var/access_permission)
 		. = ..()
 		src.access_permission = access_permission
+		access_description = get_access_desc(access_permission) // returns a corresponding description (i.e. "bridge") for access (a number)
 
 	proc/toggle_access()
 		current_enabled_status = !current_enabled_status
@@ -224,6 +226,7 @@
 			for(var/datum/access_field_data/access_field in cat_field.access_fields)
 				var/list/associated_list_entry = list(
 					"access_permission" = access_field.access_permission,
+					"access_description" = access_field.access_description,
 					"current_enabled_status" = access_field.current_enabled_status,
 					"original_id_enabled_status" = access_field.original_id_enabled_status
 				)

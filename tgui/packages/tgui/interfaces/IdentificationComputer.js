@@ -1,5 +1,7 @@
+import { Fragment } from 'inferno';
 import { useBackend, useLocalState } from '../backend';
 import { Tabs, Box, Dropdown, BlockQuote, Button, LabeledList, Divider, Icon, NoticeBox, NumberInput, Section, Stack, Flex } from '../components';
+import { ButtonCheckbox } from '../components/Button';
 import { Window } from '../layouts';
 
 export const IdentificationComputer = (props, context) => {
@@ -197,9 +199,41 @@ const TabTwoCardModificationPage = (_props, context) => {
         title="Access"
       >
         access
+        {
+          generateAccessCategoriesWithButtons(id_computer_process_data)
+        }
+
       </Section>
     </>
   );
+};
+
+const generateAccessCategoriesWithButtons = function (id_computer_process_data) {
+  return Object.keys(id_computer_process_data.cat_access_fields).map((key, index) => {
+    return (
+      <Fragment key={id_computer_process_data.cat_access_fields[key].category_title}>
+        <Section
+          title={id_computer_process_data.cat_access_fields[key].category_title} >
+          <Flex direction={"column"} wrap={"wrap"} height={25} justify={"space-evenly"}>
+            {generateAccessButtons(id_computer_process_data.cat_access_fields[key].access_fields)}
+          </Flex>
+        </Section>
+      </Fragment>
+    );
+  });
+};
+
+const generateAccessButtons = function (input_access_fields) {
+  return Object.keys(input_access_fields).map((key, index) => {
+    return (
+      <ButtonCheckbox
+        key={input_access_fields[key].access_permission}
+        checked={!!input_access_fields[key].current_enabled_status}
+      >
+        {input_access_fields[key].access_description}
+      </ButtonCheckbox>
+    );
+  });
 };
 
 const AuthenticationPanelNotAuthenticated = (_props, context) => {
