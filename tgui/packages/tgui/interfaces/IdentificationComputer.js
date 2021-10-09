@@ -107,6 +107,23 @@ const TabTwoContent = (_props, context) => {
           {modified_card_data ? ("Eject ID: " + modified_card_data.name) : "Insert ID"}
         </Button>
       </Section>
+      {modified_card_data && <TabTwoCardModificationPage />}
+    </>
+  );
+};
+
+const TabTwoCardModificationPage = (_props, context) => {
+  const { act, data } = useBackend(context);
+  const {
+    authentication_card_data,
+    is_authenticated,
+    modified_card_data,
+    id_computer_process_data,
+    all_job_selections,
+  } = data;
+
+  return (
+    <>
       <Section
         title="Identification"
       >
@@ -114,23 +131,23 @@ const TabTwoContent = (_props, context) => {
           <Stack.Item>
             Registered:
             <Button
-              onClick={() => act('insert_target_id')}
+              onClick={() => act('set_identification_field', { field: "registered" })}
             >
-              {modified_card_data?.registered}
+              {id_computer_process_data.registered_name}
             </Button>
           </Stack.Item>
           <Stack.Item>
             Assignment:
             <Button
-              onClick={() => act('insert_target_id')}
+              onClick={() => act('set_identification_field', { field: "assignment" })}
             >
-              {modified_card_data?.assignment}
+              {id_computer_process_data.assignment}
             </Button>
           </Stack.Item>
           <Stack.Item>
             PIN:
             <Button
-              onClick={() => act('insert_target_id')}
+              onClick={() => act('set_identification_field', { field: "pin" })}
             >
               ****
             </Button>
@@ -143,14 +160,17 @@ const TabTwoContent = (_props, context) => {
         <Stack>
           <Stack.Item>
             <Dropdown
+              selected={id_computer_process_data.current_dropdown_selected_job === null
+                ? null : id_computer_process_data.current_dropdown_selected_job}
               options={all_job_selections}
               width={12}
+              onSelected={selected => act("select_dropdown_job", { selection: selected })}
             />
           </Stack.Item>
           <Stack.Item>
             <Button
               icon=""
-              onClick={() => act('insert_target_id')}
+              onClick={() => act('set_access_from_current_selected_dropdown_job', { clear_access: 1, enabled_value_to_set: 1 })}
             >
               Set
             </Button>
@@ -158,7 +178,7 @@ const TabTwoContent = (_props, context) => {
           <Stack.Item>
             <Button
               icon="plus"
-              onClick={() => act('insert_target_id')}
+              onClick={() => act('set_access_from_current_selected_dropdown_job', { enabled_value_to_set: 1 })}
             >
               Add access
             </Button>
@@ -166,7 +186,7 @@ const TabTwoContent = (_props, context) => {
           <Stack.Item>
             <Button
               icon="minus"
-              onClick={() => act('insert_target_id')}
+              onClick={() => act('set_access_from_current_selected_dropdown_job', { enabled_value_to_set: 0 })}
             >
               Subtract access
             </Button>

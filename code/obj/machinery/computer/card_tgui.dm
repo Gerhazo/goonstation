@@ -83,6 +83,7 @@
 	var/original_assignment
 	var/pin
 	var/original_pin
+	var/current_dropdown_selected_job
 	var/list/types_of_categorised_access_fields_to_add // used to generate cat_access_fields
 	var/list/cat_access_fields
 
@@ -119,9 +120,10 @@
 	proc/setup_access_field_datas_from_a_list_of_accesses(var/list/list_of_accesses)
 		PRIVATE_PROC(TRUE)
 		for(var/access in list_of_accesses) // set every access in list as originally and currently enabled
-			var/datum/access_field_data/found_access_field = access_field_lookup["[access]"]
-			found_access_field.current_enabled_status = 1
-			found_access_field.original_id_enabled_status = 1
+			if(access_field_lookup["[access]"])
+				var/datum/access_field_data/found_access_field = access_field_lookup["[access]"]
+				found_access_field.current_enabled_status = 1
+				found_access_field.original_id_enabled_status = 1
 
 	proc/toggle_access(var/access)
 		if(access_field_lookup["[access]"])
@@ -138,11 +140,15 @@
 
 	proc/set_access(var/access, var/enabled)
 		if(access_field_lookup["[access]"])
-			var/datum/access_field_data/access_data = access_field_lookup["access"]
+			var/datum/access_field_data/access_data = access_field_lookup["[access]"]
 			if(access_data.current_enabled_status == enabled)
 				return // no change needed, already matches enabled's value
 			else
 				toggle_access(access) // calls proc which toggles the access to match enabled's value and handles keeping track of the change
+
+	proc/set_all_accesses(var/enabled)
+		for(var/access in access_field_lookup)
+			set_access(access, enabled)
 
 /datum/identification_computer_process_data/standard
 	types_of_categorised_access_fields_to_add = list(/datum/categorised_access_fields/civilian,
@@ -197,7 +203,7 @@
 		job_dropdown_selection_options = list()
 		var/list/civilianjobs = list("Staff Assistant", "Bartender", "Chef", "Botanist", "Rancher", "Chaplain", "Janitor", "Clown")
 		var/list/engineeringjobs = list("Engineer", "Mechanic", "Miner", "Quartermaster")
-		var/list/researchjobs = list("Scientist", "Medical Doctor", "Geneticist", "Roboticist", "Pathologist")
+		var/list/researchjobs = list("Scientist", "Medical Doctor", "Geneticist", "Roboticist")
 		var/list/securityjobs = list("Security Officer", "Security Assistant", "Detective")
 		var/list/commandjobs = list("Head of Personnel", "Chief Engineer", "Research Director", "Medical Director", "Captain")
 		job_dropdown_selection_options.Add(civilianjobs, engineeringjobs, researchjobs, securityjobs, commandjobs)
@@ -236,6 +242,7 @@
 		"original_assignment" = src.id_computer_process_data.original_assignment,
 		"pin" = src.id_computer_process_data.pin,
 		"original_pin" = src.id_computer_process_data.original_pin,
+		"current_dropdown_selected_job" = src.id_computer_process_data.current_dropdown_selected_job,
 		"number_of_added_access" = length(src.id_computer_process_data.list_of_added_access_permissions),
 		"number_of_removed_access" = length(src.id_computer_process_data.list_of_revoked_access_permissions),
 		"cat_access_fields" = associative_list_of_cat_access_fields
@@ -291,6 +298,61 @@
 					return TRUE
 			tgui_main_tab_index = new_index
 			. = TRUE
+		if("set_identification_field")
+			if(!authenticated)
+				return FALSE
+
+			switch(params["field"])
+				if("registered")
+					//src.id_computer_process_data.registered_name = params["value"]
+					var/new_input_name = input(usr, "What name?", "ID computer", null)
+					new_input_name = strip_html(new_input_name, 100, 1)
+					if(new_input_name)
+						src.id_computer_process_data.registered_name = new_input_name
+						. = TRUE
+				if("assignment")
+					//src.id_computer_process_data.assignment = params["value"]
+					var/new_input_assignment = input(usr, "Enter a custom job assignment.", "Assignment")
+					new_input_assignment = strip_html(new_input_assignment, 100, 1)
+					if(new_input_assignment)
+						src.id_computer_process_data.assignment = new_input_assignment
+						. = TRUE
+				if("pin")
+					//src.id_computer_process_data.pin = params["value"]
+					var/new_input_pin = input(usr, "Enter a new PIN.", "ID computer", 0) as null|num
+					if(new_input_pin < 1000)
+						src.id_computer_process_data.pin = 1000
+					else if(new_input_pin > 9999)
+						src.id_computer_process_data.pin = 9999
+					else
+						src.id_computer_process_data.pin = round(new_input_pin)
+					. = TRUE
+		if("select_dropdown_job")
+			if(!authenticated)
+				return FALSE
+			src.id_computer_process_data.current_dropdown_selected_job = params["selection"]
+		if("set_access_from_current_selected_dropdown_job")
+			if(!authenticated)
+				return FALSE
+			if(!src.id_computer_process_data.current_dropdown_selected_job)
+				return FALSE
+
+			var/list/job_accesses = get_access(src.id_computer_process_data.current_dropdown_selected_job)
+			if(!length(job_accesses))
+				return FALSE
+			if(params["clear_access"]) // allows for setting a job by clearing old access
+				src.id_computer_process_data.set_all_accesses(0)
+			var/enabled = params["enabled_value_to_set"] // allows for adding or subtracting per-job access
+			for(var/access in job_accesses)
+				src.id_computer_process_data.set_access(access, enabled)
+			. = TRUE
+		if("toggle_access")
+			if(!authenticated)
+				return FALSE
+
+			var/selected_access = params["selected_access"]
+			src.id_computer_process_data.toggle_access(selected_access)
+			. = TRUE
 
 	/*
 		if("copypasta")
@@ -300,6 +362,9 @@
 			. = TRUE
 			update_icon() // Not applicable to all objects.
 	*/
+
+/obj/machinery/computer/tguicard/proc/clear_id_computer_process_data()
+	src.id_computer_process_data = null
 
 /obj/machinery/computer/tguicard/console_upper
 	icon = 'icons/obj/computerpanel.dmi'
@@ -321,7 +386,7 @@
 		user.put_in_hand_or_drop(src.authentication_card)
 		src.authentication_card = null
 		update_authentication_status()
-		src.id_computer_process_data = null
+		clear_id_computer_process_data()
 	else // no card inside, trying to insert equipped card
 		var/obj/item/I = usr.equipped()
 		if (istype(I, /obj/item/card/id))
@@ -344,7 +409,7 @@
 			src.modified_card.set_loc(src.loc)
 			user.put_in_hand_or_drop(src.modified_card)
 		src.modified_card = null
-		src.id_computer_process_data = null
+		clear_id_computer_process_data()
 	else
 		var/obj/item/I = usr.equipped()
 		if (!istype(I,/obj/item/card/id))
