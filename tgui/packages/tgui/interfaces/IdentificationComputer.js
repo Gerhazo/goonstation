@@ -6,7 +6,6 @@ import { Window } from '../layouts';
 
 export const IdentificationComputer = (props, context) => {
   const { act, data } = useBackend(context);
-  // Extract `health` and `color` variables from the `data` object.
   const {
     authentication_card_data,
     modified_card_data,
