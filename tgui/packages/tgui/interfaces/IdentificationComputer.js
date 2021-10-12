@@ -1,7 +1,5 @@
-import { Fragment } from 'inferno';
 import { useBackend, useLocalState } from '../backend';
 import { Tabs, Box, Dropdown, BlockQuote, Button, LabeledList, Divider, Icon, NoticeBox, NumberInput, Section, Stack, Flex } from '../components';
-import { ButtonCheckbox } from '../components/Button';
 import { Window } from '../layouts';
 
 export const IdentificationComputer = (props, context) => {
@@ -221,11 +219,12 @@ const AccessCategory = (props, context) => {
       >
         {accessFields.map(accessField => (
           <Flex.Item key={accessField.access_permission}>
-            <ButtonCheckbox
+            <Button.Checkbox
               checked={!!accessField.current_enabled_status}
+              onClick={() => act('toggle_access', { selected_access: accessField.access_permission })}
             >
               {accessField.access_description}
-            </ButtonCheckbox>
+            </Button.Checkbox>
           </Flex.Item>
         ))}
       </Flex>
