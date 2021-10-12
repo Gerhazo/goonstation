@@ -208,7 +208,7 @@ const AccessCategory = (props, context) => {
     category_color: categoryColor,
     category_title: categoryTitle,
   } = props;
-  const { act } = context; // Mordent -> Gerhazo note: Use act in the ButtonCheckbox component, as usual
+  const { act } = useBackend(context); // Mordent -> Gerhazo note: Use act in the ButtonCheckbox component, as usual
   return (
     <Section title={categoryTitle}>
       <Flex

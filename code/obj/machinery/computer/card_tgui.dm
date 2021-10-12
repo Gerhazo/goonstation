@@ -8,6 +8,50 @@
 /datum/access_field_data
 	var/access_permission
 	var/access_description
+	//correct, just a number (unique)
+	//just access_permission(number), access_description(visible text on button)
+	// so the structure generally makes sense to me, but I think we can get away with pulling these two vars below out into a separate thing
+	// reason for that is to separate "constants" and "data", basically
+	// will make flowing into ui_static_data and ui_data easier
+	// current access code in general is a list of ID numbers, IIRC (not specifically for the console, just access stuff in general across Goonstation)
+	// I think that is what access_permission is? Cool.
+	// so we have a few bits of data we need to send up, conceptually:
+	// - access that is on your card ("dynamic", is a list of those ID numbers)
+	// - access that is staged to be added/removed from your card (OR do via a "new state" rather than just the changes, but eh)
+	// - a list of categories (has no actual bearing on anything other than presentation, really)
+	// - each category contains a number of accesses with the data being "id", "name" and er... is that it?
+	// so the static bit here is the categories and the accesses within them (and their names)
+	// in JSON terms:
+	/*
+	accessCategories: [
+		{
+			title: 'Command',
+			color: '#123123',
+			accesses: [
+				{
+					name: 'Bridge',
+					permission: 123,
+				},
+				{
+					name: 'Medical Director's Bathroom',
+					permission: 456,
+				},
+			],
+		},
+		{
+			title: 'Civilian',
+			// ...
+		}
+	]
+	*/
+	// we then ALSo need to send two separate chunks:
+	/*
+	// both of these are part of ui_data, the accessCategories above is part of ui_static_data
+	// I know you also have the concept of "jobs" and access that comes with them, this doesn't change that
+	currentAccess: [123, 456, 789] // list of access currently on the card
+	stagedAccess: [123, 456, 999] // i.e. 789 was removed, 999 was added
+	*/
+	//i'm indifferent, can do
 	var/current_enabled_status = 0
 	var/original_id_enabled_status = 0
 
@@ -33,7 +77,7 @@
 /datum/categorised_access_fields
 	var/category_title
 	var/category_color
-	var/list/list_of_accesses // used to generate access_fields
+	var/list/list_of_accesses
 	var/list/datum/access_field_data/access_fields
 
 	New()
@@ -152,13 +196,14 @@
 		for(var/access in access_field_lookup)
 			set_access(access, enabled)
 
-/datum/identification_computer_process_data/standard
-	types_of_categorised_access_fields_to_add = list(/datum/categorised_access_fields/civilian,
-		/datum/categorised_access_fields/engineering,
-		/datum/categorised_access_fields/supply,
-		/datum/categorised_access_fields/research,
-		/datum/categorised_access_fields/security,
-		/datum/categorised_access_fields/command)
+var/list/standard_identification_console_access_categories = list(
+	/datum/categorised_access_fields/civilian,
+	/datum/categorised_access_fields/engineering,
+	/datum/categorised_access_fields/supply,
+	/datum/categorised_access_fields/research,
+	/datum/categorised_access_fields/security,
+	/datum/categorised_access_fields/command
+)
 
 /obj/machinery/computer/tguicard
 	name = "Identification Computer"
@@ -189,12 +234,15 @@
 	light_g = 1
 	light_b = 0.1
 
+	// added with Mordent, for easy tidy up later
+	var/list/access_category_preset = standard_identification_console_access_categories
+	var/list/access_categories = null
+
 	// tgui data
 	var/list/job_dropdown_selection_options // if this isn't defined, it'll be generated in New()
 
 	var/id_computer_process_data_type_to_use = /datum/identification_computer_process_data/standard
-	var/datum/identification_computer_process_data/id_computer_process_data
-
+	var/datum/identification_computer_process_data/id_computer_process_data_type_to_use
 	var/tgui_main_tab_index = 1
 	var/authentication_locked_tabs = list(2, 3)
 
@@ -209,6 +257,12 @@
 		var/list/securityjobs = list("Security Officer", "Security Assistant", "Detective")
 		var/list/commandjobs = list("Head of Personnel", "Chief Engineer", "Research Director", "Medical Director", "Captain")
 		job_dropdown_selection_options.Add(civilianjobs, engineeringjobs, researchjobs, securityjobs, commandjobs)
+	if (!src.access_categories)
+		// generate from access_category_preset
+		src.access_categories = list()
+		for (var/access_category_type in src.access_category_preset)
+			// afk 2 secs, getting food from oven!
+
 
 /obj/machinery/computer/tguicard/ui_interact(mob/user, datum/tgui/ui)
 	ui = tgui_process.try_update_ui(user, src, ui)
@@ -225,26 +279,26 @@
 			var/list/list/associated_access_fields = list()
 			for(var/datum/access_field_data/access_field in cat_field.access_fields)
 				var/list/associated_list_entry = list(
-					"access_permission" = access_field.access_permission,
-					"access_description" = access_field.access_description,
-					"current_enabled_status" = access_field.current_enabled_status,
-					"original_id_enabled_status" = access_field.original_id_enabled_status
+					"access_permission" = access_field.access_permission, // static
+					"access_description" = access_field.access_description, // static
+					"current_enabled_status" = access_field.current_enabled_status, // dynamic?
+					"original_id_enabled_status" = access_field.original_id_enabled_status // dynamic?
 				)
 				associated_access_fields.Add(list(associated_list_entry))
 			var/list/cat_field_associated_list = list(
-				"category_title" = cat_field.category_title,
-				"category_color" = cat_field.category_color,
-				"access_fields" = associated_access_fields
+				"category_title" = cat_field.category_title,  // static
+				"category_color" = cat_field.category_color,  // static
+				"access_fields" = associated_access_fields  // list itself static but not the data inside elements
 			)
 			associative_list_of_cat_access_fields.Add(list(cat_field_associated_list))
 
 		sent_id_computer_process_data_associative_list = list(
 			"registered_name" = src.id_computer_process_data.registered_name,
-			"original_registered_name" = src.id_computer_process_data.original_registered_name,
+			"original_registered_name" = src.id_computer_process_data.original_registered_name, // static for session
 			"assignment" = src.id_computer_process_data.assignment,
-			"original_assignment" = src.id_computer_process_data.original_assignment,
+			"original_assignment" = src.id_computer_process_data.original_assignment, // static for session
 			"pin" = src.id_computer_process_data.pin,
-			"original_pin" = src.id_computer_process_data.original_pin,
+			"original_pin" = src.id_computer_process_data.original_pin, // static for session (though might be reworked since we don't see it)
 			"current_dropdown_selected_job" = src.id_computer_process_data.current_dropdown_selected_job,
 			"number_of_added_access" = length(src.id_computer_process_data.list_of_added_access_permissions),
 			"number_of_removed_access" = length(src.id_computer_process_data.list_of_revoked_access_permissions),
@@ -253,7 +307,7 @@
 	var/list/sent_authenticaton_card_data
 	if(src.authentication_card)
 		sent_authenticaton_card_data = list(
-			"name" = src.authentication_card.name,
+			"name" = src.authentication_card.name,''
 			"registered" = src.authentication_card.registered,
 			"assignment" = src.authentication_card.assignment
 		)
@@ -276,7 +330,8 @@
 
 /obj/machinery/computer/tguicard/ui_static_data(mob/user)
 	. = list(
-		"all_job_selections" = src.job_dropdown_selection_options
+		"all_job_selections" = src.job_dropdown_selection_options,
+		"accessCategories" = src.access_categories,
 	)
 
 /obj/machinery/computer/tguicard/proc/generate_id_computer_process_data_from_current_modified_card()
