@@ -125,9 +125,7 @@ const TabTwoCardModificationPage = (_props, context) => {
 
   return (
     <>
-      <Section
-        title="Identification"
-      >
+      <Section title="Identification">
         <Stack vertical>
           <Stack.Item>
             Registered:
@@ -155,17 +153,14 @@ const TabTwoCardModificationPage = (_props, context) => {
           </Stack.Item>
         </Stack>
       </Section>
-      <Section
-        title="Jobs"
-      >
+      <Section title="Jobs">
         <Stack>
           <Stack.Item>
             <Dropdown
-              selected={id_computer_process_data.current_dropdown_selected_job === null
-                ? null : id_computer_process_data.current_dropdown_selected_job}
+              selected={!!id_computer_process_data.current_dropdown_selected_job}
               options={all_job_selections}
               width={12}
-              onSelected={selected => act("select_dropdown_job", { selection: selected })}
+              onSelected={selected => act('select_dropdown_job', { selection: selected })}
             />
           </Stack.Item>
           <Stack.Item>
@@ -194,45 +189,42 @@ const TabTwoCardModificationPage = (_props, context) => {
           </Stack.Item>
         </Stack>
       </Section>
-      <Section
-        title="Access"
-      >
-        access
-        {
-          generateAccessCategoriesWithButtons(id_computer_process_data)
-        }
-
+      <Section title="Access">
+        {Object.keys(id_computer_process_data).map(key => (
+          <AccessCategory
+            key={id_computer_process_data[key].category_title}
+            processData={id_computer_process_data[key]}
+          />
+        ))}
       </Section>
     </>
   );
 };
 
-const generateAccessCategoriesWithButtons = function (id_computer_process_data) {
-  return Object.keys(id_computer_process_data.cat_access_fields).map((key, index) => {
-    return (
-      <Fragment key={id_computer_process_data.cat_access_fields[key].category_title}>
-        <Section
-          title={id_computer_process_data.cat_access_fields[key].category_title} >
-          <Flex direction={"column"} wrap={"wrap"} height={25} justify={"space-evenly"}>
-            {generateAccessButtons(id_computer_process_data.cat_access_fields[key].access_fields)}
-          </Flex>
-        </Section>
-      </Fragment>
-    );
-  });
-};
-
-const generateAccessButtons = function (input_access_fields) {
-  return Object.keys(input_access_fields).map((key, index) => {
-    return (
-      <ButtonCheckbox
-        key={input_access_fields[key].access_permission}
-        checked={!!input_access_fields[key].current_enabled_status}
-      >
-        {input_access_fields[key].access_description}
-      </ButtonCheckbox>
-    );
-  });
+const AccessCategory = (props, context) => {
+  const { processData } = props;
+  const { act } = context; // Use act in the ButtonCheckbox component, as usual
+  const {
+    access_fields,
+    category_title,
+  } = processData;
+  return (
+    <Section title={category_title}>
+      <Flex direction="column" wrap="wrap" height={25} justify="space-evenly">
+        {Object.keys(access_fields).map(accessFieldKey => {
+          const accessField = access_fields[accessFieldKey];
+          return (
+            <ButtonCheckbox
+              key={accessField.access_permission}
+              checked={!!accessField.current_enabled_status}
+            >
+              {accessField.access_description}
+            </ButtonCheckbox>
+          );
+        })}
+      </Flex>
+    </Section>
+  );
 };
 
 const AuthenticationPanelNotAuthenticated = (_props, context) => {
