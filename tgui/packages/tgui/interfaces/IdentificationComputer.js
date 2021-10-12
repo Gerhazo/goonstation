@@ -119,6 +119,9 @@ const TabTwoCardModificationPage = (_props, context) => {
     authentication_card_data,
     is_authenticated,
     modified_card_data,
+    id_computer_process_data: {
+      cat_access_fields = [],
+    } = {},
     id_computer_process_data,
     all_job_selections,
   } = data;
@@ -190,10 +193,10 @@ const TabTwoCardModificationPage = (_props, context) => {
         </Stack>
       </Section>
       <Section title="Access">
-        {Object.keys(id_computer_process_data).map(key => (
+        {cat_access_fields.map(catAccessField => (
           <AccessCategory
-            key={id_computer_process_data[key].category_title}
-            processData={id_computer_process_data[key]}
+            key={catAccessField.category_title}
+            {...catAccessField}
           />
         ))}
       </Section>
@@ -202,26 +205,29 @@ const TabTwoCardModificationPage = (_props, context) => {
 };
 
 const AccessCategory = (props, context) => {
-  const { processData } = props;
-  const { act } = context; // Use act in the ButtonCheckbox component, as usual
   const {
-    access_fields,
-    category_title,
-  } = processData;
+    access_fields: accessFields,
+    category_color: categoryColor,
+    category_title: categoryTitle,
+  } = props;
+  const { act } = context; // Mordent -> Gerhazo note: Use act in the ButtonCheckbox component, as usual
   return (
-    <Section title={category_title}>
-      <Flex direction="column" wrap="wrap" height={25} justify="space-evenly">
-        {Object.keys(access_fields).map(accessFieldKey => {
-          const accessField = access_fields[accessFieldKey];
-          return (
+    <Section title={categoryTitle}>
+      <Flex
+        direction="column"
+        wrap="wrap"
+        height={5}
+        justify="space-evenly"
+      >
+        {accessFields.map(accessField => (
+          <Flex.Item key={accessField.access_permission}>
             <ButtonCheckbox
-              key={accessField.access_permission}
               checked={!!accessField.current_enabled_status}
             >
               {accessField.access_description}
             </ButtonCheckbox>
-          );
-        })}
+          </Flex.Item>
+        ))}
       </Flex>
     </Section>
   );

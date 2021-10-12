@@ -423,6 +423,8 @@ var/list/access_name_lookup //Generated at round start.
 			return "Cargo Bay"
 		if(access_security)
 			return "Security"
+		if(access_brig)
+			return "Brig Access"
 		if(access_forensics_lockers)
 			return "Forensics"
 		if(access_securitylockers)
@@ -531,6 +533,8 @@ var/list/access_name_lookup //Generated at round start.
 			return "Head of Personnel's Office"
 		if(access_dwaine_superuser)
 			return "DWAINE Superuser"
+		if(access_ghostdrone)
+			return "Ghostdrone Access"
 
 
 

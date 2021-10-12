@@ -239,45 +239,45 @@
 			associative_list_of_cat_access_fields.Add(list(cat_field_associated_list))
 
 		sent_id_computer_process_data_associative_list = list(
-		"registered_name" = src.id_computer_process_data.registered_name,
-		"original_registered_name" = src.id_computer_process_data.original_registered_name,
-		"assignment" = src.id_computer_process_data.assignment,
-		"original_assignment" = src.id_computer_process_data.original_assignment,
-		"pin" = src.id_computer_process_data.pin,
-		"original_pin" = src.id_computer_process_data.original_pin,
-		"current_dropdown_selected_job" = src.id_computer_process_data.current_dropdown_selected_job,
-		"number_of_added_access" = length(src.id_computer_process_data.list_of_added_access_permissions),
-		"number_of_removed_access" = length(src.id_computer_process_data.list_of_revoked_access_permissions),
-		"cat_access_fields" = associative_list_of_cat_access_fields
+			"registered_name" = src.id_computer_process_data.registered_name,
+			"original_registered_name" = src.id_computer_process_data.original_registered_name,
+			"assignment" = src.id_computer_process_data.assignment,
+			"original_assignment" = src.id_computer_process_data.original_assignment,
+			"pin" = src.id_computer_process_data.pin,
+			"original_pin" = src.id_computer_process_data.original_pin,
+			"current_dropdown_selected_job" = src.id_computer_process_data.current_dropdown_selected_job,
+			"number_of_added_access" = length(src.id_computer_process_data.list_of_added_access_permissions),
+			"number_of_removed_access" = length(src.id_computer_process_data.list_of_revoked_access_permissions),
+			"cat_access_fields" = associative_list_of_cat_access_fields
 		)
 	var/list/sent_authenticaton_card_data
 	if(src.authentication_card)
 		sent_authenticaton_card_data = list(
-		"name" = src.authentication_card.name,
-		"registered" = src.authentication_card.registered,
-		"assignment" = src.authentication_card.assignment
+			"name" = src.authentication_card.name,
+			"registered" = src.authentication_card.registered,
+			"assignment" = src.authentication_card.assignment
 		)
 
 	var/list/sent_modified_card_data
 	if(src.modified_card)
 		sent_modified_card_data = list(
-		"name" = src.modified_card.name,
-		"registered" = src.modified_card.registered,
-		"assignment" = src.modified_card.assignment
+			"name" = src.modified_card.name,
+			"registered" = src.modified_card.registered,
+			"assignment" = src.modified_card.assignment
 		)
 
 	. = list(
-	"authentication_card_data" = sent_authenticaton_card_data,
-	"modified_card_data" = sent_modified_card_data,
-	"is_authenticated" = src.authenticated,
-	"id_computer_process_data" = sent_id_computer_process_data_associative_list,
-	"selected_main_tab_index" = src.tgui_main_tab_index
+		"authentication_card_data" = sent_authenticaton_card_data,
+		"modified_card_data" = sent_modified_card_data,
+		"is_authenticated" = src.authenticated,
+		"id_computer_process_data" = sent_id_computer_process_data_associative_list,
+		"selected_main_tab_index" = src.tgui_main_tab_index
 	)
 
 /obj/machinery/computer/tguicard/ui_static_data(mob/user)
-		. = list(
-			"all_job_selections" = src.job_dropdown_selection_options
-		)
+	. = list(
+		"all_job_selections" = src.job_dropdown_selection_options
+	)
 
 /obj/machinery/computer/tguicard/proc/generate_id_computer_process_data_from_current_modified_card()
 	src.id_computer_process_data = new id_computer_process_data_type_to_use
